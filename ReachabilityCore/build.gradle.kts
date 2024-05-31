@@ -1,17 +1,24 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    `maven-publish`
 }
 
 kotlin {
     androidTarget {
         compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
+            this@androidTarget.compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_1_8)
+                freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
             }
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -29,6 +36,20 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "Reachability"
+            description = "Reachability library for Android and iOS"
+            url = uri("https://maven.pkg.github.com/hipporasy/reachability")
+            credentials {
+                username = System.getenv("GITHUB_AUTHOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }
