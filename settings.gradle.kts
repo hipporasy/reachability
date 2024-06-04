@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Reachability"
-include(":ReachabilityCore")
+include(":reachability")

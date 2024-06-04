@@ -11,7 +11,6 @@ plugins {
 }
 
 kotlin {
-    task("testClasses")
     androidTarget {
         publishLibraryVariants("release", "debug")
         publishLibraryVariantsGroupedByFlavor = true
@@ -53,7 +52,7 @@ kotlin {
 }
 
 android {
-    namespace = "dev.hipporasy.reachability"
+    namespace = "io.github.hipporasy.reachability"
     compileSdk = 34
     defaultConfig {
         minSdk = 27
