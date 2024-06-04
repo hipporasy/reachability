@@ -6,7 +6,7 @@ import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 
 actual class Reachability(
-    private val reachability: OSReachability = OSReachability.reachabilityForInternetConnection()
+    private val reachability: NativeReachability = NativeReachability.reachabilityForInternetConnection()
 ) {
     private var status: MutableStateFlow<ReachabilityStatus> =
         MutableStateFlow(ReachabilityStatus.Unknown)

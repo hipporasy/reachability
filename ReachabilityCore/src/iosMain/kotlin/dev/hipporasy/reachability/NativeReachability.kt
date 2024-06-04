@@ -1,9 +1,12 @@
+@file:OptIn(ExperimentalForeignApi::class)
+
 package dev.hipporasy.reachability
 
 import cnames.structs.__SCNetworkReachability
 import kotlinx.cinterop.CPointed
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.UIntVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.asStableRef
@@ -30,7 +33,6 @@ import platform.SystemConfiguration.kSCNetworkReachabilityFlagsConnectionOnTraff
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsConnectionRequired
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsInterventionRequired
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsIsDirect
-import platform.SystemConfiguration.kSCNetworkReachabilityFlagsIsLocalAddress
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsIsWWAN
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsReachable
 import platform.SystemConfiguration.kSCNetworkReachabilityFlagsTransientConnection
@@ -47,11 +49,10 @@ import platform.posix.sockaddr_in
 
 const val kReachabilityChangedNotification = "ReachabilityChangedNotification"
 
-@OptIn(ExperimentalForeignApi::class)
-class OSReachability private constructor(private val reachableOnWWAN: Boolean = true) {
+class NativeReachability private constructor(private val reachableOnWWAN: Boolean = true) {
 
     private var reachabilitySerialQueue: dispatch_queue_t = dispatch_queue_t()
-    private var reachabilityObject: OSReachability? = null
+    private var reachabilityObject: NativeReachability? = null
     private var _reachabilityRef: SCNetworkReachabilityRef? = null
 
     fun finalize() {
@@ -104,7 +105,7 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
 
     companion object {
 
-        fun reachabilityForLocalWiFi(): OSReachability {
+        fun reachabilityForLocalWiFi(): NativeReachability {
             val localWifiAddress = cValue<sockaddr_in> {
                 sin_len = sizeOf<sockaddr_in>().convert()
                 sin_family = AF_INET.convert()
@@ -116,10 +117,10 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
                     localWifiAddress.ptr.reinterpret()
                 )
             }
-            var returnedValue: OSReachability? = null
+            var returnedValue: NativeReachability? = null
 
             if (reachability != null) {
-                returnedValue = OSReachability()
+                returnedValue = NativeReachability()
                 returnedValue._reachabilityRef = reachability
             } else {
                 CFRelease(reachability)
@@ -127,7 +128,7 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
             return returnedValue!!
         }
 
-        fun reachabilityForInternetConnection(): OSReachability {
+        fun reachabilityForInternetConnection(): NativeReachability {
             val zeroAddress = cValue<sockaddr_in> {
                 sin_len = sizeOf<sockaddr_in>().convert()
                 sin_family = AF_INET.convert()
@@ -138,10 +139,10 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
                     zeroAddress.ptr.reinterpret()
                 )
             }
-            var returnedValue: OSReachability? = null
+            var returnedValue: NativeReachability? = null
 
             if (reachability != null) {
-                returnedValue = OSReachability(reachableOnWWAN = true)
+                returnedValue = NativeReachability(reachableOnWWAN = true)
                 returnedValue._reachabilityRef = reachability
             } else {
                 CFRelease(reachability)
@@ -154,8 +155,8 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
             flags: UInt,
             info: CPointer<out CPointed>?
         ) {
-            val reachability = info?.asStableRef<OSReachability>()!!.get()
-            reachability.reachabilityChanged(flags)
+            val reachability = info?.asStableRef<NativeReachability>()?.get()
+            reachability?.reachabilityChanged(flags)
         }
     }
 
@@ -182,6 +183,7 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
                 retain = null
                 release = null
             }
+            context.info = StableRef.create(this@NativeReachability).asCPointer()
             val result = SCNetworkReachabilitySetCallback(
                 target = _reachabilityRef,
                 callout = staticCFunction { target, flags, info ->
@@ -195,7 +197,7 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
                         queue = reachabilitySerialQueue
                     )
                 ) {
-                    reachabilityObject = this@OSReachability
+                    reachabilityObject = this@NativeReachability
                     return true
                 } else {
                     SCNetworkReachabilitySetCallback(_reachabilityRef, null, null)
@@ -298,10 +300,8 @@ class OSReachability private constructor(private val reachableOnWWAN: Boolean = 
         return (flags and kSCNetworkReachabilityFlagsIsWWAN) != 0u
     }
 
-
-
 }
 
-typealias NetworkUnreachable = (OSReachability) -> Unit
+typealias NetworkUnreachable = (NativeReachability) -> Unit
 
-typealias NetworkReachable = (OSReachability) -> Unit
+typealias NetworkReachable = (NativeReachability) -> Unit
